@@ -1,12 +1,16 @@
 package com.huaixia.shorturl.service.impl;
 
+import com.google.common.hash.BloomFilter;
+import com.google.common.hash.Funnels;
 import com.google.common.hash.Hashing;
 import com.huaixia.shorturl.common.ApiResponse;
 import com.huaixia.shorturl.dto.CreateShortUrlQuery;
 import com.huaixia.shorturl.service.ShortUrlService;
+import com.huaixia.shorturl.utils.BloomFilterUtil;
 import com.huaixia.shorturl.utils.DecimalToBase62Util;
 import com.huaixia.shorturl.utils.RedisClientUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -18,6 +22,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Random;
 
 /**
  * @author biliyu
@@ -33,25 +38,38 @@ public class ShortUrlServiceImpl implements ShortUrlService {
     @Autowired
     private RedisClientUtil redisClientUtil;
 
+    @Autowired
+    private BloomFilterUtil bloomFilterUtil;
+
     @Override
     public ApiResponse<String> createShortUrl(String url) {
         // 获得 10 进制
-        long l = Hashing.murmur3_32_fixed().hashUnencodedChars(url).padToLong();
+        long hash = Hashing.murmur3_32_fixed().hashUnencodedChars(url).padToLong();
         // 10 进制转 62 进制
-        String base62 = DecimalToBase62Util.decimalToBase62(l);
-        // 存储到 redis
-        redisClientUtil.set(base62, url);
+        String base62 = DecimalToBase62Util.decimalToBase62(hash);
+        checkBase62(url, base62);
+        bloomFilterUtil.bfreserve(base62, 0.01, 100);
+        bloomFilterUtil.bfadd(base62, url);
         return ApiResponse.ok(shortUrl + base62);
     }
+
 
     @Override
     public RedirectView redirect(String key) {
         // 从 Redis 中取出长链地址
         String redirectUrl = redisClientUtil.get(key);
-
+        // 重定向
         RedirectView redirectView = new RedirectView();
         redirectView.setUrl(redirectUrl);
         return redirectView;
-
     }
+
+    private void checkBase62(String url, String base62) {
+        Boolean bfexists = bloomFilterUtil.bfexists(base62, url);
+        if (bfexists) {
+            base62 = base62 + RandomStringUtils.random(1);
+            checkBase62(url, base62);
+        }
+    }
+
 }

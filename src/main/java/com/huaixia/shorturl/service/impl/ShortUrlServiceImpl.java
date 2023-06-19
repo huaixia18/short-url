@@ -80,12 +80,13 @@ public class ShortUrlServiceImpl implements ShortUrlService {
 
     private void checkBase62(String url, String base62) {
         Boolean bfexists = bloomFilterUtil.bfexists(base62, url);
+        String newBase62;
         // 考虑到布隆过滤器存在误判问题，如果返回存在，查询数据库确定是否真的存在
         if (bfexists) {
             String longUrl = urlMapService.getLongUrlByShortUrl(base62);
             if (StringUtils.isNoneBlank(longUrl)) {
-                base62 = base62 + RandomStringUtils.random(1);
-                checkBase62(url, base62);
+                newBase62 = base62 + RandomStringUtils.random(1);
+                checkBase62(url, newBase62);
             }
         }
     }

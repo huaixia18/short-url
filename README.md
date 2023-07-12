@@ -34,8 +34,7 @@
 
 以下是该项目的架构图：
 
-![image-20230712104358793](/Users/biliyu/Library/Application Support/typora-user-images/image-20230712104358793.png)
-
+![短链项目架构图](sql/%E7%9F%AD%E9%93%BE%E6%9E%B6%E6%9E%84%E5%9B%BE.png)
 ## 数据库表设计
 
 本项目的数据库表主要包括：
